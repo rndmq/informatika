@@ -1,5 +1,5 @@
-from Doll import BuatBoneka
-import datalawan
+from module.Doll import BuatBoneka
+import module.datalawan as datalawan
 import json
 import sys
 import time
