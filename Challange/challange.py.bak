@@ -112,40 +112,8 @@ def main():
           pesan_dari_bot = "[SYSTEM] input tidak valid. Harusnya memasukkan data \"y\" atau \"n\"."
           print(pesan_dari_bot)
           tanya_user_mengenaiBot = str(input("\nApakah kamu mau kabur dari Tacticall Doll ini? (y/n): "))
-          if tanya_user_mengenaiBot.lower() == "y":
-            pesan_dari_bot = "Kamu menuruti saran bot untuk kabur dari Tacticall Doll ini!"
-            print_lama(pesan_dari_bot)
-          elif tanya_user_mengenaiBot.lower() == "n":
-            pesan_dari_bot = "Kamu nekat melawan meski bot menyarankan kabur!"
-            print_lama(pesan_dari_bot)
-          else:
-            print("[SYSTEM] input tidak valid.")
-
-      else:  # status == "Kalah"
-        time.sleep(0.25)
-        print_lama("...")
-        pesan_dari_bot = "[SYSTEM] kamu kalah! Sebaiknya kita kabur ajaa"
-        print_lama(pesan_dari_bot)
-        User_response = str(input("\nApakah kamu mau kabur dari Tacticall Doll ini? (y/n): "))
-        if User_response.lower() == "y":
+        if tanya_user_mengenaiBot.lower() == "y":
           pesan_dari_bot = "Kamu menuruti saran bot untuk kabur dari Tacticall Doll ini!"
           print_lama(pesan_dari_bot)
-        elif User_response.lower() == "n":
-          pesan_dari_bot = "Kamu nekat melawan meski bot menyarankan kabur!"
-          print_lama(pesan_dari_bot)
-          print(f"\nKamu {status} melawan Tacticall Doll ini!")
-        else:
-          pesan_dari_bot = "[SYSTEM] input tidak valid. Harusnya memasukkan data \"y\" atau \"n\"."
-          print(pesan_dari_bot)
-          tanya_user_mengenaiBot = str(input("\nApakah kamu mau kabur dari Tacticall Doll ini? (y/n): "))
-          if tanya_user_mengenaiBot.lower() == "y":
-            pesan_dari_bot = "Kamu menuruti saran bot untuk kabur dari Tacticall Doll ini!"
-            print_lama(pesan_dari_bot)
-          elif tanya_user_mengenaiBot.lower() == "n":
-            pesan_dari_bot = "Kamu nekat melawan meski bot menyarankan kabur!"
-            print_lama(pesan_dari_bot)
-          else:
-            print("[SYSTEM] input tidak valid.")
-          
           
 main()
