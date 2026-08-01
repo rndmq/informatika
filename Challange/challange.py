@@ -5,8 +5,6 @@ import sys
 import time
 # CHALLANGE TASKS
 
-import sys
-import time
 
 def print_lama(teks, jeda_biasa=0.01, jeda_titik=0.6):
 # bonus visual cerita ajah.
