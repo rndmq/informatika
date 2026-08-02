@@ -1,7 +1,7 @@
 import random
 
 # CUMA MODULE
-def generate_lawan():
+def generate_lawan(user_power=0, difficulty=1):
     list_lawan = [
         {
          "nama": "Hans", "firepower": 60, "rate_of_fire": 85, "accuracy": 70, "evasion": 20
@@ -46,6 +46,23 @@ def generate_lawan():
          "nama": "Ethan", "firepower": 50, "rate_of_fire": 85, "accuracy": 85, "evasion": 45
          }
     ]
-    
+
     lawan = random.choice(list_lawan)
+
+    # Scaling dinamis agar musuh tidak terlalu statis.
+    # Semakin kuat user dan semakin tinggi difficulty, semakin tinggi scaling musuh.
+    difficulty_scale = {1: 1.0, 2: 1.15, 3: 1.30}[difficulty]
+
+    if user_power > 0:
+        scale = (0.9 + (user_power / 1000) * 0.45 + random.uniform(0.05, 0.20)) * difficulty_scale
+        rof_scale = (0.95 + (user_power / 1000) * 0.20 + random.uniform(0.0, 0.15)) * difficulty_scale
+    else:
+        scale = (1.0 + random.uniform(0.0, 0.12)) * difficulty_scale
+        rof_scale = (1.0 + random.uniform(0.0, 0.08)) * difficulty_scale
+
+    lawan["firepower"] = int(min(130, lawan["firepower"] * scale))
+    lawan["rate_of_fire"] = int(min(130, lawan["rate_of_fire"] * rof_scale))
+    lawan["accuracy"] = int(min(100, lawan["accuracy"] + (user_power / 350) + (difficulty * 2)))
+    lawan["evasion"] = int(min(100, lawan["evasion"] + (user_power / 500) + (difficulty * 3)))
+
     return lawan

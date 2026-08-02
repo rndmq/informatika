@@ -7,12 +7,14 @@ import random
 # CHALLANGE TASKS
 
 global darah_user
-darah_user = 1000
+darah_user = 1500
 global darah_lawan
 darah_lawan = 1000
 
+difficulty = 1
+
 list_kekuatan = ["Api", "Air", "Angin", "Bumi", "Listrik", "Es"]
-list_aksi = ["attack", "skill", "defend"]
+list_aksi = ["attack", "skill", "defend", "powerups"]
 
 aksi_user = ""
 aksi_lawan = ""
@@ -29,6 +31,12 @@ damage_lawan = 0
 
 cooldown_skill_user = 0
 cooldown_skill_lawan = 0
+cooldown_defend_lawan = 0
+cooldown_powerup_user = 0
+cooldown_powerup_lawan = 0
+
+boost_user = 0
+boost_lawan = 0
 
 burn_user = 0
 burn_lawan = 0
@@ -47,8 +55,37 @@ def hitung_damage(base_damage, aksi):
     elif aksi == "skill":
         return base_damage * 1.55
     elif aksi == "defend":
-        return base_damage * 0.5
+        return 0
+    elif aksi == "powerups":
+        return 0
     return 0
+
+
+def hitung_peluang_defend(evasion, accuracy, mode_bonus=0):
+    return min(0.95, max(0.15, (((evasion * 0.7) + (accuracy * 0.3)) / 100) + mode_bonus))
+
+
+def pilih_aksi_lawan(aksi_user, evasion_lawan, accuracy_lawan, accuracy_aku, evasion_aku, cooldown_defend, difficulty):
+    #fungsi biar ai ga murni random..
+    defend_bias = {1: 0.20, 2: 0.32, 3: 0.45}[difficulty]
+    skill_bias = {1: 0.18, 2: 0.30, 3: 0.44}[difficulty]
+
+    if cooldown_defend > 0:
+        return "attack"
+
+    if aksi_user == "skill" and evasion_lawan >= 70 and random.random() < defend_bias:
+        return "defend"
+
+    if accuracy_lawan >= accuracy_aku and evasion_lawan >= evasion_aku:
+        return "skill"
+
+    if evasion_lawan >= 75 and random.random() < defend_bias:
+        return "defend"
+
+    if accuracy_lawan >= 80 and random.random() < skill_bias:
+        return "skill"
+
+    return "attack"
 
 
 def terapkan_powerup(damage, power_up):
@@ -116,23 +153,129 @@ def print_lama(teks, jeda_biasa=0.01, jeda_titik=0.6):
     print()
 
 
+def tampilkan_info_battle(mode):
+    mode_info = {1: "Easy", 2: "Medium", 3: "Hard"}[mode]
+    print_lama(f"\n[INFO MODE] Mode aktif: {mode_info}", jeda_biasa=0.02, jeda_titik=0.3)
+    print_lama("[INFO BALANCE] Stat kamu dibatasi dengan cap dinamis, bukan statis. Jadi angka tidak melonjak terlalu besar.", jeda_biasa=0.02, jeda_titik=0.3)
+    print_lama("[INFO BALANCE] HP user ikut tumbuh dari kekuatan awal, supaya battle tetap seimbang dan tidak terlalu cepat mati.", jeda_biasa=0.02, jeda_titik=0.3)
+    print_lama("[INFO BALANCE] Lawan memakai AI yang menyesuaikan evasion, accuracy, defend, counter attack, dan crit berdasarkan difficulty.", jeda_biasa=0.02, jeda_titik=0.3)
+
+
+def pilih_mode():
+    while True:
+        print_lama("\nPilih mode: 1 = Easy, 2 = Medium, 3 = Hard", jeda_biasa=0.02, jeda_titik=0.2)
+        pilihan = input("Mode battle (1/2/3): ").strip()
+        if pilihan in {"1", "2", "3"}:
+            return int(pilihan)
+        print_lama("[SYSTEM] Pilihan tidak valid. Masukkan 1, 2, atau 3.", jeda_biasa=0.02, jeda_titik=0.2)
+
+
+def get_mode_settings(mode):
+    return {
+        1: {"enemy_scale": 1.00, "hp_scale": 1.00, "defend_bonus": 0.04, "counter_chance": 0.10, "crit_chance": 0.05},
+        2: {"enemy_scale": 1.25, "hp_scale": 1.35, "defend_bonus": 0.15, "counter_chance": 0.16, "crit_chance": 0.12},
+        3: {"enemy_scale": 1.45, "hp_scale": 1.50, "defend_bonus": 0.22, "counter_chance": 0.24, "crit_chance": 0.16},
+    }[mode]
+
+
+def cek_crit(base_damage, crit_chance, actor):
+    if random.random() < crit_chance:
+        print_lama(f"\n[CRIT] {actor} mendapat crit! Damage meningkat.", jeda_titik=0.1)
+        return round(base_damage * 1.75, 2)
+    return base_damage
+
+
+def cek_counter_attack(damage, counter_chance, actor):
+    if random.random() < counter_chance:
+        print_lama(f"\n[COUNTER] {actor} melakukan counter attack!", jeda_titik=0.1)
+        return round(damage * 0.55, 2)
+    return 0
+
+
+def normalisasi_stat(nilai, batas_bawah, batas_atas):
+    return max(batas_bawah, min(batas_atas, nilai))
+
+
+def dynamic_cap(raw_value, base_cap, growth_rate, max_extra):
+    extra = min(max_extra, raw_value * growth_rate)
+    return min(base_cap + extra, base_cap + max_extra)
+
+
+def normalisasi_input(firepower, rate_of_fire, accuracy, evasion):
+    firepower_cap = dynamic_cap(firepower, 100, 0.03, 20)
+    rate_cap = dynamic_cap(rate_of_fire, 120, 0.02, 20)
+    accuracy_cap = dynamic_cap(accuracy, 100, 0.015, 10)
+    evasion_cap = dynamic_cap(evasion, 100, 0.015, 10)
+
+    firepower = normalisasi_stat(firepower, 1, int(firepower_cap))
+    rate_of_fire = normalisasi_stat(rate_of_fire, 1, int(rate_cap))
+    accuracy = normalisasi_stat(accuracy, 0, int(accuracy_cap))
+    evasion = normalisasi_stat(evasion, 0, int(evasion_cap))
+    return firepower, rate_of_fire, accuracy, evasion
+
+
+def hitung_bonus_stat(raw_firepower, raw_rate_of_fire, raw_accuracy, raw_evasion):
+    firepower_bonus = max(0, raw_firepower - 100)
+    rate_bonus = max(0, raw_rate_of_fire - 120)
+    accuracy_bonus = max(0, raw_accuracy - 100)
+    evasion_bonus = max(0, raw_evasion - 100)
+
+    bonus_ai = round((accuracy_bonus * 0.35) + (evasion_bonus * 0.35) + (firepower_bonus * 0.10), 2)
+    bonus_hp = round((firepower_bonus * 0.9) + (rate_bonus * 0.35), 2)
+    bonus_tactical = round((accuracy_bonus * 0.2) + (evasion_bonus * 0.2) + (rate_bonus * 0.1), 2)
+    return bonus_ai, bonus_hp, bonus_tactical
+
+
+def hitung_kekuatan_user(firepower, rate_of_fire, accuracy, evasion):
+    damage_per_detik = round((firepower * rate_of_fire) / 60, 2)
+    combateffectiveness = int((30 * firepower) + (40 * (rate_of_fire ** 2) / 120) + (15 * (accuracy + evasion)))
+    kekuatan_awal = round((firepower * 0.55) + (damage_per_detik * 0.25) + (combateffectiveness * 0.20), 2)
+    return damage_per_detik, combateffectiveness, kekuatan_awal
+
+
+def hitung_darah_user(kekuatan_awal):
+    return round(1200 + (kekuatan_awal * 2.0), 2)
+
+
 # ======= MINTA DATA DARI USER =======
+difficulty = pilih_mode()
+mode_settings = get_mode_settings(difficulty)
+
 nama_boneka_aku = str(input("Masukkan nama boneka: "))
-firepower_aku = int(input("Masukkan firepower: "))
-rate_of_fire_aku = int(input("Masukkan rate of fire: "))
-accuracy_aku = int(input("Masukkan accuracy: "))
-evasion_aku = int(input("Masukkan evasion: "))
-damage_per_detik_aku = round((firepower_aku * rate_of_fire_aku) / 60, 2)
-combateffectiveness_aku = int((30 * firepower_aku) + (40 * (rate_of_fire_aku ** 2) / 120) + (15 * (accuracy_aku + evasion_aku)))
+raw_firepower_aku = int(input("Masukkan firepower: "))
+raw_rate_of_fire_aku = int(input("Masukkan rate of fire: "))
+raw_accuracy_aku = int(input("Masukkan accuracy: "))
+raw_evasion_aku = int(input("Masukkan evasion: "))
+firepower_aku, rate_of_fire_aku, accuracy_aku, evasion_aku = normalisasi_input(
+    raw_firepower_aku,
+    raw_rate_of_fire_aku,
+    raw_accuracy_aku,
+    raw_evasion_aku
+)
+bonus_ai_aku, bonus_hp_aku, bonus_tactical_aku = hitung_bonus_stat(
+    raw_firepower_aku,
+    raw_rate_of_fire_aku,
+    raw_accuracy_aku,
+    raw_evasion_aku
+)
+damage_per_detik_aku, combateffectiveness_aku, kekuatan_damage_aku = hitung_kekuatan_user(firepower_aku, rate_of_fire_aku, accuracy_aku, evasion_aku)
+darah_user = hitung_darah_user(kekuatan_damage_aku) + bonus_hp_aku
+
+def tambah_darah_lawan(darah_lawan_saatini):
+    _, _, kekuatan_user = hitung_kekuatan_user(
+        firepower_aku,
+        rate_of_fire_aku,
+        accuracy_aku,
+        evasion_aku
+    )
+    return round(min(5000, darah_lawan_saatini + (kekuatan_user * 4.2 * mode_settings["hp_scale"])), 2)
 
 # total punya user
 punya_user = BuatBoneka(f"{nama_boneka_aku}", firepower_aku, rate_of_fire_aku, accuracy_aku, evasion_aku)
-# Gunakan firepower sebagai basis damage per turn, dps tetap dipakai sebagai bonus ringan
-kekuatan_damage_aku = firepower_aku + (damage_per_detik_aku * 0.05)
 kekuatan_combat_aku = combateffectiveness_aku
 
 # Musuh
-lawan_terpilih = datalawan.generate_lawan()
+lawan_terpilih = datalawan.generate_lawan(kekuatan_damage_aku + bonus_ai_aku, difficulty)
 firepower_lawan = lawan_terpilih["firepower"]
 rate_of_fire_lawan = lawan_terpilih["rate_of_fire"]
 accuracy_lawan = lawan_terpilih["accuracy"]
@@ -141,23 +284,35 @@ dps_lawan = round((firepower_lawan * rate_of_fire_lawan) / 60, 2)
 ce_lawan = int((30 * firepower_lawan) + (40 * (rate_of_fire_lawan ** 2) / 120) + (15 * (accuracy_lawan + evasion_lawan)))
 lawan_terpilih["damage per detik lawan"] = dps_lawan
 lawan_terpilih["combat effectiveness lawan"] = ce_lawan
-kekuatan_damage_lawan = firepower_lawan + (dps_lawan * 0.05)
+kekuatan_damage_lawan = round((firepower_lawan * 0.55) + (dps_lawan * 0.25) + (ce_lawan * 0.20), 2)
 
 
 def main():
     global darah_user, darah_lawan, powerUp_user, powerUp_lawan
-    global cooldown_skill_user, cooldown_skill_lawan
+    global cooldown_skill_user, cooldown_skill_lawan, cooldown_defend_lawan
+    global cooldown_powerup_user, cooldown_powerup_lawan
     global burn_user, burn_lawan, freeze_user, freeze_lawan, shock_user, shock_lawan
+    global boost_user, boost_lawan
     print("Selamat datang di ranked!")
     data_boneka = punya_user
     print("\nData boneka yang telah kamu custom:")
     print_lama(json.dumps(data_boneka, indent=4), jeda_biasa=0.02, jeda_titik=0.4)
+    print_lama(f"\nKekuatan awal kamu: {kekuatan_damage_aku}", jeda_biasa=0.02, jeda_titik=0.4)
+    print_lama(f"\nDarah kamu saat ini: {darah_user}", jeda_biasa=0.02, jeda_titik=0.4)
+    print_lama(f"\nKepintaran AI yang dialihkan: {bonus_ai_aku}", jeda_biasa=0.02, jeda_titik=0.4)
+    print_lama(f"\nBonus darah yang dialihkan: {bonus_hp_aku}", jeda_biasa=0.02, jeda_titik=0.4)
+    tampilkan_info_battle(difficulty)
     print_lama("\n[INFO INTEL] Kamu mendapatkan kabar dari agen intel Badan Intelijen "
                "Kerajaan Dōruzufurontorain yang menyamar sebagai tukang cilok di dekat "
                "markas Mercury. Ternyata Mercury juga memiliki Tactical Doll yang "
                "berjaga di sekitar markasnya...\n", jeda_biasa=0.03, jeda_titik=0.6)
     print("\nData lawan yang telah menghadang kamu:")
     print_lama(json.dumps(lawan_terpilih, indent=4), jeda_biasa=0.02, jeda_titik=0.4)
+
+# pastiin darah lawan lebih tinggi dari user, biar adil, karna human vs random.
+    darah_lawan = tambah_darah_lawan(darah_lawan)
+    print_lama(f"\nHP awal kamu: {round(darah_user, 2)}", jeda_biasa=0.02, jeda_titik=0.3)
+    print_lama(f"HP awal lawan: {round(darah_lawan, 2)}", jeda_biasa=0.02, jeda_titik=0.3)
 
     info_skill = input("\nMau baca info skill dulu? (y/n): ").lower()
     if info_skill == "y":
@@ -175,6 +330,19 @@ def main():
             cooldown_skill_user -= 1
         if cooldown_skill_lawan > 0:
             cooldown_skill_lawan -= 1
+        if cooldown_defend_lawan > 0:
+            cooldown_defend_lawan -= 1
+        if cooldown_powerup_user > 0:
+            cooldown_powerup_user -= 1
+        if cooldown_powerup_lawan > 0:
+            cooldown_powerup_lawan -= 1
+
+        if boost_user > 0:
+            print_lama("\nKamu sedang dalam mode power up. Damage berikutnya akan naik!", jeda_titik=0.1)
+            boost_user -= 1
+        if boost_lawan > 0:
+            print_lama("\nLawan sedang menguatkan diri. Damage berikutnya lawan naik!", jeda_titik=0.1)
+            boost_lawan -= 1
 
         if burn_lawan > 0:
             darah_lawan -= 3
@@ -187,17 +355,29 @@ def main():
             print_lama("\nLawan terguncang listrik, fokusnya menurun.", jeda_titik=0.1)
             shock_lawan -= 1
 
-        aksi_user = input("Pilih aksi (attack/skill/defend): ").lower()
+        aksi_user = input("Pilih aksi (attack/skill/defend/powerups): ").lower()
         if aksi_user not in list_aksi:
-            print_lama("Aksi tidak valid. Gunakan attack, skill, atau defend.")
+            print_lama("Aksi tidak valid. Gunakan attack, skill, defend, atau powerups.")
             continue
 
-        aksi_lawan = random.choice(list_aksi)
+        aksi_lawan = pilih_aksi_lawan(aksi_user, evasion_lawan, accuracy_lawan, accuracy_aku, evasion_aku, cooldown_defend_lawan, difficulty)
+
+        if aksi_lawan == "defend":
+            cooldown_defend_lawan = 2
 
         if freeze_lawan > 0:
             aksi_lawan = "defend"
 
-        if aksi_user == "skill":
+        if aksi_user == "powerups":
+            if cooldown_powerup_user == 0:
+                cooldown_powerup_user = 2
+                boost_user = 2
+                damage_aku = hitung_damage(kekuatan_damage_aku, "powerups")
+                print_lama("\nKamu memakai power up! Damage kamu akan naik di giliran berikutnya.", jeda_titik=0.1)
+            else:
+                print_lama(f"\nPower up kamu masih dalam cooldown ({cooldown_powerup_user} giliran tersisa).", jeda_titik=0.1)
+                damage_aku = hitung_damage(kekuatan_damage_aku, "attack")
+        elif aksi_user == "skill":
             if cooldown_skill_user == 0:
                 cooldown_skill_user = 2
                 damage_aku = hitung_damage(kekuatan_damage_aku, "skill")
@@ -219,7 +399,15 @@ def main():
         else:
             damage_aku = hitung_damage(kekuatan_damage_aku, aksi_user)
 
-        if aksi_lawan == "skill":
+        if aksi_lawan == "powerups":
+            if cooldown_powerup_lawan == 0:
+                cooldown_powerup_lawan = 2
+                boost_lawan = 2
+                damage_lawan = hitung_damage(kekuatan_damage_lawan, "powerups")
+                print_lama("\nLawan memakai power up! Damage lawan akan naik di giliran berikutnya.", jeda_titik=0.1)
+            else:
+                damage_lawan = hitung_damage(kekuatan_damage_lawan, "attack")
+        elif aksi_lawan == "skill":
             if cooldown_skill_lawan == 0:
                 cooldown_skill_lawan = 2
                 damage_lawan = hitung_damage(kekuatan_damage_lawan, "skill")
@@ -256,8 +444,34 @@ def main():
         if freeze_lawan > 0:
             damage_lawan = max(0, damage_lawan - 25)
 
+        #chance defendse bwt jdi 0
+        defend_rate_lawan = hitung_peluang_defend(evasion_lawan, accuracy_lawan, mode_settings["defend_bonus"])
+        defend_rate_user = hitung_peluang_defend(evasion_aku, accuracy_aku, mode_settings["defend_bonus"] * 0.8)
+
+        if aksi_lawan == "defend":
+            if random.random() < defend_rate_lawan:
+                damage_aku = 0
+                print_lama("\nLawan mengelak serangan kamu, tetapi ia tetap terkena efek kejut dari serangan kamu!", jeda_titik=0.1)
+            else:
+                print_lama("\nLawan mengangkat pertahanan, tapi serangan kamu masih mengenai target.", jeda_titik=0.1)
+
+        if aksi_user == "defend":
+            damage_lawan = 0 if random.random() < defend_rate_user else damage_lawan
+
+        if boost_user > 0:
+            damage_aku = round(damage_aku * 1.25, 2)
+        if boost_lawan > 0:
+            damage_lawan = round(damage_lawan * 1.25, 2)
+
         damage_aku = terapkan_powerup(damage_aku, powerUp_user)
         damage_lawan = terapkan_powerup(damage_lawan, powerUp_lawan)
+
+        damage_aku = cek_crit(damage_aku, mode_settings["crit_chance"], "Kamu")
+        damage_lawan = cek_crit(damage_lawan, mode_settings["crit_chance"], "Lawan")
+
+        counter_lawan = cek_counter_attack(damage_aku, mode_settings["counter_chance"], "Lawan")
+        if counter_lawan > 0:
+            darah_user -= counter_lawan
 
         if aksi_user != "defend":
             darah_lawan -= damage_aku
