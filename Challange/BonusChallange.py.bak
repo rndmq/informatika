@@ -212,8 +212,9 @@ def print_lama(teks, jeda_biasa=0.01, jeda_titik=0.6):
 def tampilkan_info_battle(mode):
     mode_info = {1: "Easy", 2: "Medium", 3: "Hard"}[mode]
     print_lama(f"\n[INFO MODE] Mode aktif: {mode_info}", jeda_biasa=0.02, jeda_titik=0.3)
-    print_lama("[INFO BALANCE] Maklumi AI masih cupu", jeda_biasa=0.02, jeda_titik=0.3)
-    print_lama("[INFO BALANCE] Lawannya menyesuaikan sama kekuatan kamu, harusnya.", jeda_biasa=0.02, jeda_titik=0.3)
+    print_lama("[INFO BALANCE] Stat kamu dibatasi dengan cap dinamis, bukan statis. Jadi angka tidak melonjak terlalu besar.", jeda_biasa=0.02, jeda_titik=0.3)
+    print_lama("[INFO BALANCE] HP user ikut tumbuh dari kekuatan awal, supaya battle tetap seimbang dan tidak terlalu cepat mati.", jeda_biasa=0.02, jeda_titik=0.3)
+    print_lama("[INFO BALANCE] Lawan memakai AI yang menyesuaikan evasion, accuracy, defend, counter attack, dan crit berdasarkan difficulty.", jeda_biasa=0.02, jeda_titik=0.3)
 
 
 def pilih_mode():
